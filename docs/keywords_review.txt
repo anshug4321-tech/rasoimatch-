@@ -1,0 +1,17 @@
+NON-VEG words:
+  anchovies, anchovy, bacon, basa, beef, chicken, clam, clams, cod, crab, duck, fish, gelatin, gelatine, goat, ham, keema, lamb, lard, lobster, meat, mussels, mutton, octopus, oyster, oysters, pepperoni, pomfret, pork, prawn, prawns, prosciutto, rohu, salami, salmon, sardine, sardines, sausage, sausages, shrimp, shrimps, squid, tilapia, tuna, turkey
+
+EGG words:
+  egg, eggs, yolk, yolks
+
+DAIRY words (not vegan):
+  butter, buttermilk, chaas, cheddar, cheese, condensed, cream, curd, dahi, ghee, honey, khowa, khoya, malai, mawa, milk, mozzarella, paneer, parmesan, ricotta, whey, yoghurt, yogurt
+
+PLANT phrases ignored for dairy:
+  almond butter, almond milk, cashew cream, cashew milk, cocoa butter, coconut cream, coconut milk, coconut yogurt, cream of tartar, milk chocolate, oat milk, peanut butter, rice milk, shea butter, soy milk, soya milk
+
+JAIN-avoid words:
+  arbi, beetroot, carrot, carrots, colocasia, garlic, ginger, mooli, mushroom, mushrooms, onion, onions, potato, potatoes, radish, shallot, shallots, suran, turnip, yam
+
+ALWAYS-ASSUMED staples: salt, water, cooking oil, olive oil, sugar
+COMMON MASALAS: turmeric powder, red chilli powder, kashmiri red chilli powder, coriander powder, cumin powder, garam masala
