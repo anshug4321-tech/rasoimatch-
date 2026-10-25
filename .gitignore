@@ -1,0 +1,6 @@
+build/
+data/*.csv
+data/*.zip
+node_modules/
+*.png
+.DS_Store
