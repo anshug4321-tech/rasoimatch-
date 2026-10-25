@@ -1,0 +1,619 @@
+<title>RasoiMatch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout concept: one narrow column. Search and filters on top, results in three groups below, a recipe card = photo + facts + chips. */
+:root{
+  --bg:#FBF5E9; --surface:#FFFDF8; --ink:#2B2118; --muted:#66564A; --line:#E6DAC4;
+  --turmeric:#C98A06; --turmeric-soft:#FFF0C7;
+  --chilli:#B3321F; --btn:#B3321F; --btn-ink:#FFFFFF;
+  --leaf:#3A6A31; --leaf-soft:#E2F0D8;
+  --orange:#9A4A0A; --orange-soft:#FDE5CC; --focus:#1F5FBF; --shadow:0 1px 2px rgba(60,40,10,.08);
+  --f-display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --f-body:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Noto Sans Devanagari",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1D1710; --surface:#2A2118; --ink:#F4EBDD; --muted:#C0B19D; --line:#463A2B;
+  --turmeric:#F0B429; --turmeric-soft:#4A3913; --chilli:#F0745F; --btn:#C4452F; --btn-ink:#FFFFFF;
+  --leaf:#93C985; --leaf-soft:#263A21; --orange:#F2A45E; --orange-soft:#4A2F17; --focus:#7FB0FF; --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1D1710; --surface:#2A2118; --ink:#F4EBDD; --muted:#C0B19D; --line:#463A2B;
+  --turmeric:#F0B429; --turmeric-soft:#4A3913; --chilli:#F0745F; --btn:#C4452F; --btn-ink:#FFFFFF;
+  --leaf:#93C985; --leaf-soft:#263A21; --orange:#F2A45E; --orange-soft:#4A2F17; --focus:#7FB0FF; --shadow:none; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body);padding-block:0 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:960px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);line-height:1.2;text-wrap:balance;margin:0}
+h2{font-size:1.4rem} h3{font-size:1.1rem}
+p{margin:0 0 .75em}
+a{color:var(--chilli)}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+button,input,select{font:inherit;color:inherit}
+.muted{color:var(--muted)} .small{font-size:.875rem}
+
+/* header + tabs */
+header{padding-block:20px 8px}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand h1{font-size:2rem;letter-spacing:-.01em} .brand h1 span{color:var(--chilli)}
+.brand p{margin:0;color:var(--muted)}
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-top:14px;overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:10px 14px;cursor:pointer;font-weight:600;color:var(--muted);white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--turmeric)}
+section.panel{padding-top:20px}
+
+/* generic bits */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:var(--shadow)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--btn);color:var(--btn-ink);border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:5px 10px;font-size:.875rem}
+.btn:disabled{opacity:.55;cursor:default}
+label{font-weight:600;font-size:.9rem}
+input[type=text],select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-height:42px}
+input[type=text]{width:100%}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:.875rem;border:1px solid transparent;line-height:1.4}
+.chip.have{background:var(--leaf-soft);color:var(--leaf);border-color:var(--leaf)}
+.chip.miss{background:var(--orange-soft);color:var(--orange);border-color:var(--orange)}
+.chip.mine{background:var(--turmeric-soft);color:var(--ink);border-color:var(--turmeric)}
+.chip button{background:none;border:0;padding:0 2px;cursor:pointer;font-size:1rem;line-height:1}
+button.chip{cursor:pointer;background:var(--surface);border-color:var(--line);color:var(--ink)}
+button.chip:hover{border-color:var(--turmeric)}
+button.chip[aria-pressed="true"]{background:var(--turmeric-soft);border-color:var(--turmeric)}
+
+/* ingredient box */
+.search{position:relative}
+.suggest{position:absolute;z-index:5;left:0;right:0;top:100%;margin:2px 0 0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.suggest li{padding:8px 10px;border-radius:6px;cursor:pointer}
+.suggest li[aria-selected="true"],.suggest li:hover{background:var(--turmeric-soft)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;min-height:8px}
+details.quick{margin-top:12px} details.quick summary{cursor:pointer;font-weight:600}
+.qgroup{margin-top:10px} .qgroup h3{font-family:var(--f-body);font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px}
+
+/* filters */
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:16px}
+.filters>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.checks{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
+.checks label{font-weight:500;display:flex;gap:6px;align-items:center}
+.regions{display:flex;gap:6px;flex-wrap:wrap}
+
+.notice{margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--turmeric-soft);border:1px solid var(--turmeric)}
+.notice button{margin:2px 4px 2px 0}
+
+/* results */
+.summary{margin:20px 0 4px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.group{margin-top:24px}
+.group h2{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.group h2 .count{font-family:var(--f-body);font-size:.9rem;color:var(--muted);font-weight:500}
+.group p.hint{color:var(--muted);margin:2px 0 12px;font-size:.9rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:14px}
+.recipe{display:flex;flex-direction:column;gap:10px;min-width:0}
+.recipe .top{display:flex;gap:12px;min-width:0}
+.thumb{flex:none;width:92px;height:92px;border-radius:8px;overflow:hidden;background:var(--turmeric-soft);display:grid;place-items:center;font-size:2.2rem}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.recipe h3{font-size:1.05rem;overflow-wrap:anywhere}
+.meta{display:flex;gap:6px 12px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-top:4px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:baseline}
+.dot.d0{background:#2E8B3D}.dot.d1{background:#E3B505}.dot.d2{background:#C0321F}
+.bar{display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:600}
+.bar .track{flex:1;height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar .fill{height:100%;background:var(--turmeric)}
+.chiprow{display:flex;gap:6px;flex-wrap:wrap;align-items:center} .chiprow .lab{font-size:.8rem;color:var(--muted);font-weight:600}
+.subs{margin:0;padding-left:1.1em;font-size:.85rem;color:var(--muted)}
+.why summary{cursor:pointer;font-size:.9rem;font-weight:600}
+.why div{font-size:.875rem;margin-top:6px;color:var(--muted)}
+.why b{color:var(--ink)}
+.credit{font-size:.78rem;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.empty{text-align:center;padding:28px 16px}
+.empty .examples{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+
+/* modal detail panel */
+.overlay{position:fixed;inset:0;background:rgba(20,12,4,.55);z-index:20;display:flex;align-items:flex-end;justify-content:center;padding:0}
+.modal{background:var(--surface);color:var(--ink);width:100%;max-width:640px;max-height:92%;overflow:auto;border-radius:14px 14px 0 0;padding:18px 18px 24px;padding-bottom:max(24px,env(safe-area-inset-bottom,0px))}
+@media (min-width:700px){.overlay{align-items:center;padding:16px}.modal{border-radius:14px}}
+.lines{list-style:none;padding:0;margin:10px 0;display:flex;flex-direction:column;gap:4px}
+.lines li{display:flex;gap:8px;padding:5px 8px;border-radius:6px;font-size:.92rem;border-left:4px solid transparent}
+.lines li.have{background:var(--leaf-soft);border-left-color:var(--leaf)}
+.lines li.miss{background:var(--orange-soft);border-left-color:var(--orange)}
+.lines li.pantry{border-left-color:var(--line);color:var(--muted)}
+.lines .tag{margin-left:auto;font-size:.75rem;font-weight:700;white-space:nowrap}
+
+/* how it works + evaluation */
+.prose{max-width:70ch} .prose h2{margin:22px 0 8px}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:14px 0}
+.flow div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:.9rem;position:relative}
+.flow b{display:block;font-family:var(--f-display);font-size:1rem;margin-bottom:2px}
+.formula{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--turmeric-soft);padding:10px 12px;border-radius:8px;font-size:.88rem;overflow-x:auto}
+.tablewrap{overflow-x:auto;margin:8px 0 16px}
+table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.wrapcell{white-space:normal;min-width:140px}
+th{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.progress{height:12px;border-radius:99px;background:var(--line);overflow:hidden;margin:10px 0}
+.progress>div{height:100%;width:0;background:var(--leaf);transition:width .15s}
+.pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:.75rem;font-weight:700;background:var(--turmeric-soft);border:1px solid var(--turmeric)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(20px,env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:99px;z-index:30;font-size:.9rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="brand"><h1>Rasoi<span>Match</span></h1><p>Cook from what is already in your kitchen.</p></div>
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" id="tab-find" aria-selected="true" aria-controls="panel-find">Find recipes</button>
+    <button role="tab" id="tab-how" aria-selected="false" aria-controls="panel-how">How it works</button>
+    <button role="tab" id="tab-eval" aria-selected="false" aria-controls="panel-eval">Evaluation</button>
+  </div>
+</header>
+
+<div id="loading" class="card empty" role="status">Preparing the recipe index…</div>
+<div id="error" class="card empty" hidden role="alert"><p><b>Something went wrong while preparing the data.</b></p><p id="error-msg" class="muted small"></p><button class="btn" id="retry">Try again</button></div>
+
+<main id="app" hidden>
+<!-- ============================ FIND ============================ -->
+<section class="panel" id="panel-find" role="tabpanel" aria-labelledby="tab-find">
+  <div class="card">
+    <label for="ing-input">What ingredients do you have? <span class="muted small">English or Hindi names, like jeera, aloo, dhania</span></label>
+    <div class="row" style="margin-top:6px;flex-wrap:nowrap">
+      <div class="search" style="flex:1;min-width:0">
+        <input type="text" id="ing-input" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" placeholder="Type an ingredient, press Enter">
+        <ul class="suggest" id="suggest" role="listbox" hidden></ul>
+      </div>
+      <button class="btn" id="add-btn">Add</button>
+    </div>
+    <div class="chips" id="my-chips" aria-label="Your ingredients"></div>
+    <div id="unknown-notice" class="notice" hidden></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost small" id="clear-btn" hidden>Clear all</button></div>
+    <details class="quick" open><summary>Quick add</summary><div id="quick"></div></details>
+
+    <div class="filters">
+      <div><label for="f-diet">Diet</label>
+        <select id="f-diet"><option value="any">Any</option><option value="veg">Vegetarian</option><option value="egg">Vegetarian or egg</option><option value="nonveg">Non-veg only</option><option value="jain">Jain (estimated)</option><option value="vegan">Vegan (estimated)</option></select></div>
+      <div><label for="f-time">Maximum time</label>
+        <select id="f-time"><option value="0">Any</option><option>15</option><option>30</option><option>45</option><option>60</option><option>90</option></select></div>
+      <div><label for="f-method">Ranking method</label>
+        <select id="f-method"><option value="C">C: weighted score (default)</option><option value="B">B: TF-IDF cosine</option><option value="A">A: Jaccard overlap</option></select></div>
+    </div>
+    <div style="margin-top:12px"><span class="small" style="font-weight:600" id="region-label">Region (none selected = all)</span>
+      <div class="regions" id="f-regions" role="group" aria-labelledby="region-label" style="margin-top:6px"></div></div>
+    <div class="checks">
+      <label><input type="checkbox" id="f-indian" checked> Indian recipes only</label>
+      <label><input type="checkbox" id="f-masala" checked> I have basic masalas at home</label>
+    </div>
+    <p class="muted small" style="margin:8px 0 0">Salt, water, cooking oil, olive oil and sugar are always assumed. Basic masalas are: <span id="masala-list"></span>.</p>
+  </div>
+
+  <div id="results"></div>
+</section>
+
+<!-- ============================ HOW ============================ -->
+<section class="panel prose" id="panel-how" role="tabpanel" aria-labelledby="tab-how" hidden></section>
+
+<!-- ============================ EVAL ============================ -->
+<section class="panel" id="panel-eval" role="tabpanel" aria-labelledby="tab-eval" hidden>
+  <div class="card prose">
+    <h2 style="margin-top:0">How good are the matches?</h2>
+    <p>The data has no answer key, so the test is built from the recipes themselves. For a recipe, the app hides 30% of its ingredients, searches with the other 70%, and checks where the original recipe lands in the ranking. Every number below is computed in your browser when you press the button. Nothing is typed in by hand.</p>
+    <p class="small muted">Recipes with at least 5 core ingredients are split 70% development / 30% test, balanced by region group, seed 42. Weights are tuned on the development recipes only. The test recipes are used only for the final report.</p>
+    <div class="row"><button class="btn" id="run-eval">Run evaluation</button>
+      <button class="btn ghost" id="copy-md" hidden>Copy results as Markdown</button>
+      <button class="btn ghost" id="use-tuned" hidden>Use tuned weights in Find recipes</button></div>
+    <div class="progress" id="eval-bar-wrap" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Evaluation progress"><div id="eval-bar"></div></div>
+    <p class="small muted" id="eval-status" role="status">Not run yet. A full run takes about a minute and the page stays usable.</p>
+  </div>
+  <div id="eval-out"></div>
+</section>
+
+<p class="credit" style="margin-top:28px">All recipe titles, ingredient lists, photos and links belong to <a href="https://www.archanaskitchen.com/" target="_blank" rel="noopener noreferrer">Archana's Kitchen</a>. RasoiMatch is an educational, non-commercial project and is not affiliated with that site.</p>
+</main>
+</div>
+<div id="detail" class="overlay" hidden></div>
+
+<script>
+/* The recipe data is inserted here by build.py (instructions are NOT included). */
+const DATA = /*__DATA__*/;
+</script>
+<script>
+/*__ENGINE__*/
+</script>
+<script>
+/* ==========================================================================
+   User interface. All state lives in plain variables (no localStorage needed).
+   ========================================================================== */
+let E = null;                                   // the engine
+const state = { items: [], diet: "any", maxTime: 0, regions: [], indianOnly: true, masalaOn: true, method: "C", shown: { now: 10, almost: 10, shop: 10 }, last: null };
+let lastEval = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (x, d = 1) => (x * 100).toFixed(d) + "%";
+const DIET_LABEL = ["Veg", "Egg", "Non-veg"], FOOD_EMOJI = ["🍛", "🥘", "🍲", "🥗", "🫓", "🍚"];
+
+function toast(msg) {
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; t.setAttribute("role", "status");
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
+}
+async function copyText(text) {                 // clipboard API first, then a hidden textarea as fallback
+  try { await navigator.clipboard.writeText(text); toast("Copied"); return; } catch (e) { /* fall through */ }
+  try {
+    const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select(); const ok = document.execCommand("copy"); ta.remove();
+    toast(ok ? "Copied" : "Select and copy manually");
+  } catch (e) { toast("Copy is not available here"); }
+}
+
+/* ---------------------------------------------------------------- startup */
+function start() {
+  $("loading").hidden = false; $("error").hidden = true; $("app").hidden = true;
+  setTimeout(() => {                            // let the "preparing" message paint first
+    try {
+      E = createEngine(DATA);
+      buildFilters(); buildQuick(); buildHow(); render();
+      $("loading").hidden = true; $("app").hidden = false;
+    } catch (err) { $("loading").hidden = true; $("error").hidden = false; $("error-msg").textContent = String(err && err.message || err); }
+  }, 30);
+}
+$("retry").onclick = start;
+
+/* ---------------------------------------------------------------- tabs */
+const TABS = ["find", "how", "eval"];
+TABS.forEach(t => $("tab-" + t).addEventListener("click", () => {
+  TABS.forEach(x => { $("tab-" + x).setAttribute("aria-selected", x === t); $("panel-" + x).hidden = x !== t; });
+}));
+$("tab-find").parentElement.addEventListener("keydown", e => {   // arrow keys move between tabs
+  const i = TABS.findIndex(t => $("tab-" + t).getAttribute("aria-selected") === "true");
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    const n = TABS[(i + (e.key === "ArrowRight" ? 1 : 2)) % 3]; $("tab-" + n).click(); $("tab-" + n).focus();
+  }
+});
+
+/* ---------------------------------------------------------------- ingredient input */
+function addTexts(text) {
+  const p = E.parseInput(text), unknown = [];
+  p.found.forEach(f => { if (!state.items.some(x => x.id === f.id)) state.items.push({ id: f.id, typed: f.text }); });
+  p.unknown.forEach(u => unknown.push({ word: u, suggestions: E.suggestFor(u) }));
+  showUnknown(unknown); render();
+}
+function showUnknown(list) {
+  const box = $("unknown-notice");
+  if (!list.length) { box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  box.innerHTML = list.map((u, k) => `<div><b>"${esc(u.word)}"</b> was not recognised. ` +
+    (u.suggestions.length ? "Did you mean " + u.suggestions.map((s, j) =>
+      `<button class="chip" data-sug="${esc(s.alias)}">${esc(s.alias)}${s.alias !== s.name ? " (" + esc(s.name) + ")" : ""}</button>`).join("") + "?"
+      : "No close match. Try another spelling or an English name.") + "</div>").join("");
+}
+$("unknown-notice").addEventListener("click", e => {
+  const b = e.target.closest("[data-sug]"); if (!b) return;
+  addTexts(b.dataset.sug);
+});
+function commitInput() { const v = $("ing-input").value; $("ing-input").value = ""; hideSuggest(); if (v.trim()) addTexts(v); }
+$("add-btn").onclick = commitInput;
+$("clear-btn").onclick = () => { state.items = []; showUnknown([]); render(); };
+
+/* type-ahead: wait 200 ms after the last key */
+let sugTimer = null, sugList = [], sugIdx = -1;
+function hideSuggest() { $("suggest").hidden = true; $("ing-input").setAttribute("aria-expanded", "false"); sugIdx = -1; }
+function drawSuggest() {
+  const ul = $("suggest");
+  ul.innerHTML = sugList.map((s, i) => `<li role="option" id="sug-${i}" data-i="${i}" aria-selected="${i === sugIdx}">${esc(s.key)}${s.key !== s.name ? `<span class="muted">: ${esc(s.name)}</span>` : ""}</li>`).join("");
+  ul.hidden = !sugList.length; $("ing-input").setAttribute("aria-expanded", String(!!sugList.length));
+}
+$("ing-input").addEventListener("input", e => {
+  clearTimeout(sugTimer);
+  const v = e.target.value;
+  if (v.includes(",")) { const parts = v.split(","); const last = parts.pop(); parts.join(",").trim() && addTexts(parts.join(",")); e.target.value = last.trimStart(); }
+  sugTimer = setTimeout(() => { sugList = E.autocomplete(e.target.value.split(",").pop(), 8); sugIdx = -1; drawSuggest(); }, 200);
+});
+$("ing-input").addEventListener("keydown", e => {
+  if (e.key === "ArrowDown" && sugList.length) { sugIdx = (sugIdx + 1) % sugList.length; drawSuggest(); e.preventDefault(); }
+  else if (e.key === "ArrowUp" && sugList.length) { sugIdx = (sugIdx + sugList.length - 1) % sugList.length; drawSuggest(); e.preventDefault(); }
+  else if (e.key === "Escape") hideSuggest();
+  else if (e.key === "Enter") { e.preventDefault(); if (sugIdx >= 0) { $("ing-input").value = ""; addTexts(sugList[sugIdx].key); hideSuggest(); } else commitInput(); }
+});
+$("suggest").addEventListener("mousedown", e => {
+  const li = e.target.closest("li"); if (!li) return; e.preventDefault();
+  $("ing-input").value = ""; addTexts(sugList[+li.dataset.i].key); hideSuggest();
+});
+$("ing-input").addEventListener("blur", () => setTimeout(hideSuggest, 120));
+
+/* ---------------------------------------------------------------- quick add + filters */
+const QUICK = {
+  "Vegetables": ["potato", "onion", "tomato", "cauliflower", "spinach", "okra", "brinjal", "carrot", "green peas", "cabbage", "bottle gourd", "green bell pepper", "green chilli", "ginger", "garlic", "lemon", "coriander leaves"],
+  "Dals and grains": ["toor dal", "moong dal", "chana dal", "urad dal", "masoor dal", "chickpeas", "kidney beans", "rice", "wheat flour", "gram flour", "sooji", "flattened rice"],
+  "Dairy and more": ["paneer", "curd", "milk", "ghee", "butter", "egg", "coconut"],
+  "Spices": ["cumin seeds", "mustard seeds", "turmeric powder", "red chilli powder", "coriander powder", "garam masala", "asafoetida", "curry leaves", "cardamom", "cinnamon stick", "black pepper", "bay leaf"]
+};
+function buildQuick() {
+  $("quick").innerHTML = Object.entries(QUICK).map(([g, names]) => {
+    const chips = names.map(n => E.resolveText(n)).filter(id => id >= 0).map(id => {
+      const h = E.hindiById.get(id), label = E.vocab[id] + (h ? " · " + h[0] : "");
+      return `<button class="chip" data-id="${id}" aria-pressed="false">${esc(label)}</button>`;
+    }).join("");
+    return `<div class="qgroup"><h3>${g}</h3><div class="row" style="gap:6px">${chips}</div></div>`;
+  }).join("");
+}
+$("quick").addEventListener("click", e => {
+  const b = e.target.closest("[data-id]"); if (!b) return;
+  const id = +b.dataset.id, at = state.items.findIndex(x => x.id === id);
+  if (at >= 0) state.items.splice(at, 1); else state.items.push({ id, typed: E.vocab[id] });
+  render();
+});
+function buildFilters() {
+  $("f-regions").innerHTML = E.regions.map((r, i) => `<button class="chip" data-r="${i}" aria-pressed="false">${esc(r)}</button>`).join("");
+  $("masala-list").textContent = [...E.masalaFlag].map((f, i) => f ? E.vocab[i] : null).filter(Boolean).join(", ");
+}
+$("f-regions").addEventListener("click", e => {
+  const b = e.target.closest("[data-r]"); if (!b) return;
+  const r = +b.dataset.r, at = state.regions.indexOf(r);
+  if (at >= 0) state.regions.splice(at, 1); else state.regions.push(r);
+  state.shown = { now: 10, almost: 10, shop: 10 }; render();
+});
+[["f-diet", "diet"], ["f-time", "maxTime"], ["f-method", "method"]].forEach(([id, key]) =>
+  $(id).addEventListener("change", e => { state[key] = key === "maxTime" ? +e.target.value : e.target.value; state.shown = { now: 10, almost: 10, shop: 10 }; render(); }));
+$("f-indian").addEventListener("change", e => { state.indianOnly = e.target.checked; render(); });
+$("f-masala").addEventListener("change", e => { state.masalaOn = e.target.checked; render(); });
+
+/* ---------------------------------------------------------------- results */
+const EXAMPLES = ["aloo, pyaz, tamatar, jeera", "paneer, matar, dahi, jeera", "rice, moong dal, ghee, haldi", "besan, pyaz, ajwain, nimbu"];
+function render() {
+  // my chips
+  $("my-chips").innerHTML = state.items.map((x, i) =>
+    `<span class="chip mine">${esc(x.typed !== E.vocab[x.id] ? x.typed + " → " + E.vocab[x.id] : E.vocab[x.id])}<button aria-label="Remove ${esc(E.vocab[x.id])}" data-rm="${i}">×</button></span>`).join("");
+  $("clear-btn").hidden = !state.items.length;
+  document.querySelectorAll("#quick [data-id]").forEach(b => b.setAttribute("aria-pressed", String(state.items.some(x => x.id === +b.dataset.id))));
+  document.querySelectorAll("#f-regions [data-r]").forEach(b => b.setAttribute("aria-pressed", String(state.regions.includes(+b.dataset.r))));
+
+  const out = $("results");
+  if (!state.items.length) {
+    state.last = null;
+    out.innerHTML = `<div class="card empty" style="margin-top:20px"><h2>Start with two or three things from your kitchen</h2>
+      <p class="muted">Type above, tap a quick-add chip, or try an example.</p>
+      <div class="examples">${EXAMPLES.map(x => `<button class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>`;
+    return;
+  }
+  const filters = { diet: state.diet, maxTime: state.maxTime, regions: state.regions, indianOnly: state.indianOnly, masalaOn: state.masalaOn };
+  const res = E.recommend(state.items.map(x => x.id), filters, 80, state.method);
+  state.last = res;
+  if (res.onlyStaples) {
+    out.innerHTML = `<div class="card empty" style="margin-top:20px"><p>Salt, water, oil and sugar are always assumed, so they cannot narrow the search. Add at least one other ingredient.</p></div>`; return;
+  }
+  const total = res.counts.now + res.counts.almost + res.counts.shop;
+  if (!total) {
+    const tips = [];
+    if (state.diet !== "any") tips.push("set Diet to Any");
+    if (state.maxTime) tips.push("raise or clear the time limit");
+    if (state.regions.length) tips.push("clear the region choices");
+    if (state.indianOnly) tips.push("untick “Indian recipes only”");
+    out.innerHTML = `<div class="card empty" style="margin-top:20px"><h2>No recipes match yet</h2><p class="muted">${tips.length ? "Try to " + tips.join(", or ") + "." : "Try adding another ingredient or a different name."}</p></div>`; return;
+  }
+  const G = [["now", "Cook now", "You have everything. Salt, water, oil and sugar are assumed."],
+             ["almost", "Almost there", "One or two items missing."], ["shop", "Needs shopping", "Three or more items missing."]];
+  out.innerHTML = `<div class="summary" aria-live="polite"><span><b>${total.toLocaleString()}</b> recipes share an ingredient with you</span><span class="muted small">searched in ${res.took_ms} ms</span></div>` +
+    G.map(([g, title, hint]) => {
+      const list = res.groups[g].slice(0, state.shown[g]);
+      return `<div class="group"><h2>${title} <span class="count">${res.counts[g].toLocaleString()} recipes</span></h2><p class="hint">${hint}</p>
+        ${list.length ? `<div class="grid">${list.map(cardHtml).join("")}</div>` : `<p class="muted">Nothing here with these filters.</p>`}
+        ${res.groups[g].length > state.shown[g] ? `<p><button class="btn ghost small" data-more="${g}">Show more</button></p>` : ""}</div>`;
+    }).join("");
+}
+$("my-chips").addEventListener("click", e => { const b = e.target.closest("[data-rm]"); if (b) { state.items.splice(+b.dataset.rm, 1); render(); } });
+$("results").addEventListener("click", e => {
+  const ex = e.target.closest("[data-ex]"); if (ex) { addTexts(ex.dataset.ex); return; }
+  const more = e.target.closest("[data-more]"); if (more) { state.shown[more.dataset.more] += 10; render(); return; }
+  const det = e.target.closest("[data-detail]"); if (det) { openDetail(+det.dataset.detail, det); return; }
+  const cp = e.target.closest("[data-copy]"); if (cp) copyMissing(+cp.dataset.copy);
+});
+$("results").addEventListener("error", e => {           // photo failed to load -> show the built-in fallback
+  if (e.target.tagName === "IMG") fallbackThumb(e.target);
+}, true);
+/* safety net: if an image is blocked (no error event) or still pending after 4 s, show the emoji box */
+setInterval(() => document.querySelectorAll(".thumb img").forEach(img => { if (img.complete && img.naturalWidth === 0) fallbackThumb(img); }), 1500);
+function fallbackThumb(img) { const box = img.parentElement; box.textContent = FOOD_EMOJI[+box.dataset.ri % FOOD_EMOJI.length]; box.setAttribute("role", "img"); box.setAttribute("aria-label", "No photo available"); }
+
+function dietDot(d) { return `<span><span class="dot d${d}"></span>${DIET_LABEL[d]}</span>`; }
+function timeText(r) { return r.time == null ? "time unknown" : r.time + " min" + (r.longPrep ? " (long prep)" : ""); }
+function hintsFor(ids) {                                 // substitution hints: shown only, never change the score
+  const out = [];
+  for (const id of ids) { const s = E.subsFor(id)[0]; if (s) out.push(`<li><b>No ${esc(E.vocab[id])}?</b> Try ${esc(s.try)}. ${esc(s.note)}</li>`); }
+  return out.slice(0, 4).join("");
+}
+function whyHtml(s) {
+  const w = s.why, r = E.recipes[s.ri];
+  if (w.method === "A") return `<div>Jaccard overlap: ingredients in common (${s.inter}) divided by all different ingredients in your list and this recipe together (${s.inter} + ${s.cSize - s.inter} missing + ${w.qSize - s.inter} of yours it does not use). Score = <b>${pct(s.score)}</b>.</div>`;
+  if (w.method === "B") return `<div>TF-IDF cosine: each ingredient is weighted by how rare it is across all recipes. Your list and the recipe are compared as weighted vectors. Score = <b>${pct(s.score)}</b>.</div>`;
+  return `<div>You have <b>${s.inter} of ${s.cSize}</b> ingredients. Rare ones count more, so weighted coverage is <b>${pct(w.weighted_coverage)}</b> (plain coverage ${pct(w.coverage)}).<br>
+    This recipe uses <b>${s.inter} of your ${w.qSize}</b> ingredients (usage ${pct(w.usage)}).<br>
+    Missing: <b>${w.missing}</b>, so the “few missing” part is 1 / (1 + ${w.missing}) = ${(1 / (1 + w.missing)).toFixed(2)}.<br>
+    Score = ${w.weights.cov} × ${w.weighted_coverage.toFixed(2)} + ${w.weights.use} × ${w.usage.toFixed(2)} + ${w.weights.few} × ${(1 / (1 + w.missing)).toFixed(2)} = <b>${pct(s.score)}</b>.</div>`;
+}
+function cardHtml(s) {
+  const r = E.recipes[s.ri], w = s.why;
+  const thumb = r.img ? `<img src="${esc(r.img)}" alt="Photo of ${esc(r.name)}" loading="lazy" referrerpolicy="no-referrer">` : FOOD_EMOJI[s.ri % FOOD_EMOJI.length];
+  return `<article class="card recipe">
+    <div class="top"><div class="thumb" data-ri="${s.ri}">${thumb}</div>
+      <div style="min-width:0;flex:1"><h3>${esc(r.name)}</h3>
+        <div class="meta"><span>⏱ ${timeText(r)}</span><span>${esc(E.regions[r.region])}</span>${dietDot(r.diet)}</div>
+        <div class="bar" style="margin-top:8px" aria-label="Match ${Math.round(s.score * 100)} percent"><div class="track"><div class="fill" style="width:${Math.min(100, Math.round(s.score * 100))}%"></div></div><span>${Math.round(s.score * 100)}%</span></div></div></div>
+    <div class="chiprow"><span class="lab">You have</span>${w.have.length ? w.have.map(i => `<span class="chip have">${esc(E.vocab[i])}</span>`).join("") : '<span class="muted small">nothing yet</span>'}</div>
+    ${w.miss.length ? `<div class="chiprow"><span class="lab">Missing</span>${w.miss.map(i => `<span class="chip miss">${esc(E.vocab[i])}</span>`).join("")}</div>
+      ${hintsFor(w.miss) ? `<ul class="subs">${hintsFor(w.miss)}</ul>` : ""}` : ""}
+    <details class="why"><summary>Why this recipe?</summary>${whyHtml(s)}</details>
+    <div class="actions"><button class="btn small" data-detail="${s.ri}">View ingredients</button>
+      ${w.miss.length ? `<button class="btn ghost small" data-copy="${s.ri}">Copy missing items</button>` : ""}
+      <a class="btn ghost small" style="text-decoration:none" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">Cook it on Archana's Kitchen</a></div>
+    <div class="credit">Source: Archana's Kitchen. Diet is estimated from ingredients.</div></article>`;
+}
+function findScored(ri) {
+  const g = state.last; if (!g) return null;
+  for (const k of ["now", "almost", "shop"]) { const s = g.groups[k].find(x => x.ri === ri); if (s) return s; }
+  return null;
+}
+function copyMissing(ri) {
+  const s = findScored(ri); if (!s) return;
+  copyText("Missing for " + E.recipes[ri].name + ":\n" + s.why.miss.map(i => "- " + E.vocab[i]).join("\n"));
+}
+
+/* ---------------------------------------------------------------- detail panel */
+let lastFocus = null;
+function openDetail(ri, opener) {
+  const r = E.recipes[ri], s = findScored(ri); lastFocus = opener;
+  const haveSet = new Set(s ? s.why.have : []), missSet = new Set(s ? s.why.miss : []);
+  const lines = r.lines.map(([text, id]) => {
+    let cls = "", tag = "";
+    if (id >= 0 && haveSet.has(id)) { cls = "have"; tag = "you have"; }
+    else if (id >= 0 && missSet.has(id)) { cls = "miss"; tag = "missing"; }
+    else if (id >= 0 && E.assumedFlag[id]) { cls = "pantry"; tag = "assumed"; }
+    else if (id >= 0 && E.masalaFlag[id] && state.masalaOn) { cls = "pantry"; tag = "basic masala"; }
+    return `<li class="${cls}"><span>${esc(text)}</span><span class="tag">${tag}</span></li>`;
+  }).join("");
+  const box = $("detail");
+  box.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="dt"><div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap">
+    <h2 id="dt">${esc(r.name)}</h2><button class="btn ghost small" id="close-detail" aria-label="Close">Close</button></div>
+    <div class="meta" style="margin:6px 0"><span>⏱ ${timeText(r)}</span><span>${esc(E.regions[r.region])}</span>${dietDot(r.diet)}</div>
+    <p class="small muted">Diet is estimated from ingredients, not certified. Marking of lines is a best effort match by name.</p>
+    <ul class="lines">${lines}</ul>
+    <div class="actions"><a class="btn" style="text-decoration:none" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">Cook it on Archana's Kitchen</a>
+      ${s && s.why.miss.length ? `<button class="btn ghost" id="copy-detail">Copy missing items</button>` : ""}</div>
+    <p class="credit" style="margin-top:12px">Source: Archana's Kitchen (archanaskitchen.com). The cooking steps are on the original page.</p></div>`;
+  box.hidden = false; $("close-detail").focus();
+  $("close-detail").onclick = closeDetail;
+  if ($("copy-detail")) $("copy-detail").onclick = () => copyMissing(ri);
+}
+function closeDetail() { $("detail").hidden = true; $("detail").innerHTML = ""; if (lastFocus) lastFocus.focus(); }
+$("detail").addEventListener("click", e => { if (e.target === $("detail")) closeDetail(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("detail").hidden) closeDetail(); });
+
+/* ---------------------------------------------------------------- How it works (numbers come from the data) */
+function buildHow() {
+  const m = E.meta, w = E.weights, hindiN = Object.keys(DATA.hindi).length;
+  const names = flag => [...flag].map((f, i) => f ? E.vocab[i] : null).filter(Boolean).join(", ");
+  const dietCount = [0, 0, 0]; E.recipes.forEach(r => dietCount[r.diet]++);
+  $("panel-how").innerHTML = `
+  <h2 style="margin-top:0">How RasoiMatch works</h2>
+  <p>RasoiMatch is <b>simple, explainable matching</b>. It is not AI, and it has no language model. It counts which ingredients you have and which a recipe needs, and weights the rare ones more (a TF-IDF style weight).</p>
+  <div class="flow" aria-label="Steps">
+    <div><b>1. Read names</b>“jeera” and “cumin seeds” become one ingredient. Unknown words are listed with suggestions.</div>
+    <div><b>2. Find recipes</b>An index from ingredient to recipes jumps straight to recipes that share something with you.</div>
+    <div><b>3. Score</b>Coverage, usage and few-missing are combined into one number you can inspect.</div>
+    <div><b>4. Group</b>Cook now (0 missing), Almost there (1 or 2), Needs shopping (3 or more).</div>
+  </div>
+  <h2>The score (method C)</h2>
+  <div class="formula">score = ${w.cov} × weighted_coverage + ${w.use} × usage + ${w.few} × 1/(1 + missing)</div>
+  <ul>
+    <li><b>coverage</b> = ingredients you have ÷ ingredients the recipe needs.</li>
+    <li><b>weighted_coverage</b> is the same, but each ingredient counts by its IDF weight, so missing saffron hurts more than missing onion.</li>
+    <li><b>usage</b> = ingredients you have that the recipe uses ÷ ingredients you listed.</li>
+    <li><b>missing</b> = items still to buy. Substitution hints are shown next to them and do not change the score.</li>
+  </ul>
+  <p class="small muted">These are the weights now in use. They start at 0.6 / 0.3 / 0.1. The Evaluation tab can tune them on development recipes only. Methods A (Jaccard overlap) and B (TF-IDF cosine) can be chosen in the filters for comparison.</p>
+  <h2>The data</h2>
+  <ul>
+    <li><b>${m.rows.toLocaleString()}</b> recipes from archanaskitchen.com. Only title, ingredients, time, region, photo link and recipe link are used. The cooking instructions are not included.</li>
+    <li>Ingredient names: <b>${m.vocab_raw.toLocaleString()}</b> different strings in the raw file, <b>${m.vocab_no_brackets.toLocaleString()}</b> after removing bracket text, <b>${m.vocab_final.toLocaleString()}</b> after merging names (${E.df.reduce((c, x) => c + (x >= 5 ? 1 : 0), 0)} appear in 5 or more recipes).</li>
+    <li>${hindiN} Hindi and alternative names were written by hand, plus names found in brackets (like “cumin seeds (jeera)”). Merges by fuzzy matching are only suggested in a review file and never applied.</li>
+    <li>${DATA.subs.length} substitution hints, written by hand.</li>
+    <li>Always assumed: ${names(E.assumedFlag)}. Basic masalas (switchable): ${names(E.masalaFlag)}.</li>
+    <li>Diet estimate: ${dietCount[0].toLocaleString()} veg, ${dietCount[1].toLocaleString()} egg, ${dietCount[2].toLocaleString()} non-veg, found by whole-word keywords (so “eggplant” is not egg). Jain and vegan are estimates too.</li>
+    <li>Regions: the 82 site labels were grouped by hand into 7 groups. “Indian recipes only” hides the International and Meal type groups.</li>
+  </ul>
+  <h2>Limits</h2>
+  <ul>
+    <li>Diet, Jain and vegan labels are estimates from ingredient names. They are not certified. Check labels yourself if it matters.</li>
+    <li>All recipes come from one website, so the style is Archana's Kitchen style.</li>
+    <li>Results depend on ingredient names. A name that is not in the data, or is spelt in an unusual way, may not match.</li>
+    <li>A recipe with many rare ingredients can look worse than it is, and the time shown is the site's total time.</li>
+    <li>It is not AI-powered. It does not know taste, techniques or what goes well together.</li>
+  </ul>
+  <h2>Credit</h2>
+  <p>Recipes, photos and links belong to <a href="https://www.archanaskitchen.com/" target="_blank" rel="noopener noreferrer">Archana's Kitchen</a> (archanaskitchen.com). This is an educational, non-commercial project.</p>`;
+}
+
+/* ---------------------------------------------------------------- Evaluation tab */
+function runSlices(gen, onStep, onDone) {               // run the generator in ~20 ms slices so the page never freezes
+  function slice() {
+    const t0 = performance.now();
+    while (performance.now() - t0 < 20) {
+      const n = gen.next();
+      if (n.done) { onDone(); return; }
+      onStep(n.value);
+    }
+    setTimeout(slice, 0);
+  }
+  slice();
+}
+$("run-eval").onclick = () => {
+  const btn = $("run-eval"); btn.disabled = true; $("eval-out").innerHTML = ""; $("copy-md").hidden = true; $("use-tuned").hidden = true;
+  $("eval-bar-wrap").hidden = false; $("eval-status").textContent = "Starting…";
+  const gen = evaluationSteps(E, { testCap: 500, devCap: 250 });
+  const t0 = performance.now();
+  runSlices(gen, st => {
+    const p = Math.round(100 * st.done / st.total);
+    $("eval-bar").style.width = p + "%"; $("eval-bar-wrap").setAttribute("aria-valuenow", p);
+    $("eval-status").textContent = "Running… " + p + "%";
+    if (st.phase === "finished") lastEval = st.results;
+  }, () => {
+    btn.disabled = false; $("eval-bar-wrap").hidden = true;
+    $("eval-status").textContent = "Finished in " + ((performance.now() - t0) / 1000).toFixed(1) + " s. Run it again to get the same numbers (seed 42).";
+    if (lastEval) { showEval(lastEval); $("copy-md").hidden = false; $("use-tuned").hidden = false; }
+  });
+};
+$("use-tuned").onclick = () => { if (!lastEval) return; E.weights = { ...lastEval.config.tuned }; buildHow(); render(); toast("Tuned weights are now used for ranking"); };
+$("copy-md").onclick = () => lastEval && copyText(evalMarkdown(lastEval));
+
+const ms = x => pct(x.mean) + " ± " + (x.sd * 100).toFixed(1);
+function showEval(R) {
+  const c = R.config, f = R.failures, tw = c.tuned;
+  const T = R.tests;
+  const row = (name, t) => `<tr><td>${name}</td><td>${ms(t.top1)}</td><td>${ms(t.top5)}</td><td>${ms(t.top10)}</td><td>${t.mrr.mean.toFixed(3)} ± ${t.mrr.sd.toFixed(3)}</td></tr>`;
+  const bd = o => Object.entries(o).map(([k, m]) => `<tr><td>${esc(k)}</td><td>${Math.round(m.n)}</td><td>${pct(m.top1)}</td><td>${pct(m.top5)}</td><td>${m.mrr.toFixed(3)}</td></tr>`).join("");
+  $("eval-out").innerHTML = `
+  <div class="card prose" style="margin-top:16px"><h2 style="margin-top:0">Setup</h2>
+    <p>${c.eligible.toLocaleString()} recipes have at least 5 core ingredients: <b>${c.devN.toLocaleString()}</b> development and <b>${c.testN.toLocaleString()}</b> test. Sample used: <b>${c.devSample}</b> development recipes for tuning and <b>${c.testSample}</b> test recipes for the report, each searched against all ${E.N.toLocaleString()} recipes. Each test was repeated with ${c.draws} random draws (seeds ${c.seeds[0]} to ${c.seeds[c.seeds.length - 1]}), shown as mean ± standard deviation. The test recipes were never used for tuning.</p></div>
+  <div class="card prose" style="margin-top:14px"><h2 style="margin-top:0">Weight tuning (development recipes only)</h2>
+    <p>A grid of ${c.grid} weight combinations (steps of 0.1) was tried. Chosen weights: <b>coverage ${tw.cov}, usage ${tw.use}, few-missing ${tw.few}</b>.</p>
+    <div class="tablewrap"><table><thead><tr><th>Weights</th><th>Top-1</th><th>Top-5</th><th>MRR</th></tr></thead><tbody>
+      <tr><td>Starting 0.6 / 0.3 / 0.1</td><td>${pct(c.startDev.top1)}</td><td>${pct(c.startDev.top5)}</td><td>${c.startDev.mrr.toFixed(3)}</td></tr>
+      <tr><td>Chosen ${tw.cov} / ${tw.use} / ${tw.few}</td><td>${pct(c.tunedDev.top1)}</td><td>${pct(c.tunedDev.top5)}</td><td>${c.tunedDev.mrr.toFixed(3)}</td></tr></tbody></table></div></div>
+  <div class="card prose" style="margin-top:14px"><h2 style="margin-top:0">Test results (method C, tuned weights)</h2>
+    <div class="tablewrap"><table><thead><tr><th>Test</th><th>Top-1</th><th>Top-5</th><th>Top-10</th><th>MRR</th></tr></thead><tbody>
+      ${row("A: hidden ingredients (70% kept)", T.A)}${row("B: some names replaced by Hindi", T.B)}${row("C: plus 2 random wrong ingredients", T.C)}</tbody></table></div>
+    <h3>By number of core ingredients (test A, all draws)</h3>
+    <div class="tablewrap"><table><thead><tr><th>Core ingredients</th><th>Recipes</th><th>Top-1</th><th>Top-5</th><th>MRR</th></tr></thead><tbody>${bd(R.breakdownSize)}</tbody></table></div>
+    <h3>By region group (test A, all draws)</h3>
+    <div class="tablewrap"><table><thead><tr><th>Region</th><th>Recipes</th><th>Top-1</th><th>Top-5</th><th>MRR</th></tr></thead><tbody>${bd(R.breakdownRegion)}</tbody></table></div></div>
+  <div class="card prose" style="margin-top:14px"><h2 style="margin-top:0">Ablation (test A, seeds 42 to 44)</h2>
+    <div class="tablewrap"><table><thead><tr><th>Variant</th><th>Top-1</th><th>Top-5</th><th>Top-10</th><th>MRR</th></tr></thead><tbody>
+      ${R.ablation.map(a => `<tr><td>${esc(a.label)}</td><td>${pct(a.top1)}</td><td>${pct(a.top5)}</td><td>${pct(a.top10)}</td><td>${a.mrr.toFixed(3)}</td></tr>`).join("")}</tbody></table></div></div>
+  <div class="card prose" style="margin-top:14px"><h2 style="margin-top:0">Failure analysis (test A, seed 42)</h2>
+    <p>${f.misses} of ${f.n} test recipes were not ranked first. For <b>${f.nearDup}</b> of them, the recipe ranked first was a near-duplicate (core ingredients at least 80% the same) of the original, so it is probably the same dish under a different title. Worst 20 below.</p>
+    <div class="tablewrap"><table><thead><tr><th>Recipe</th><th>Rank</th><th>Query / core size</th><th>Ranked first instead</th><th>Note</th></tr></thead><tbody>
+      ${f.worst.map(x => `<tr><td class="wrapcell">${esc(x.name)}</td><td>${x.rank}</td><td>${x.qsize} / ${x.coreSize}</td><td class="wrapcell">${esc(x.winner)}</td><td>${x.dup ? '<span class="pill">near-duplicate</span>' : ""}</td></tr>`).join("") || '<tr><td colspan="5">No failures in this sample.</td></tr>'}</tbody></table></div></div>
+  <div class="card prose" style="margin-top:14px"><h2 style="margin-top:0">What this means</h2>${evalSummaryHtml(R)}</div>`;
+}
+function evalSummaryHtml(R) {
+  const T = R.tests, c = R.config, f = R.failures;
+  const abl = Object.fromEntries(R.ablation.map(a => [a.label, a]));
+  const best = R.ablation.reduce((b, a) => (a.mrr > b.mrr ? a : b));
+  return `<p><b>What the numbers say.</b> When a query holds 70% of a recipe's core ingredients, the original recipe is ranked first ${pct(T.A.top1.mean)} of the time and in the top 5 ${pct(T.A.top5.mean)} of the time (MRR ${T.A.mrr.mean.toFixed(3)}). With Hindi names it is ${pct(T.B.top1.mean)} for Top-1, and with two wrong ingredients added it is ${pct(T.C.top1.mean)}. Tuning moved development MRR from ${c.startDev.mrr.toFixed(3)} to ${c.tunedDev.mrr.toFixed(3)}. In the ablation table, the best variant by MRR is “${esc(best.label)}”.</p>
+  <p><b>What they do not say.</b> This is an optimistic test. The query is a part of the recipe it is looking for, so it rewards methods that favour recipes using most of what you typed. It does not measure whether a result is tasty, suitable or what a real person wanted. Test B uses the Hindi names this project listed by hand, so it checks that the name table works, not that it covers every name people use. ${f.nearDup ? `${f.nearDup} of ${f.misses} misses had a near-duplicate ranked first, so some “failures” are the right dish.` : ""} Numbers come from ${c.testSample} test recipes, so small differences between variants are within noise (see the ± values).</p>
+  <p><b>How to improve it.</b> Add more Hindi and regional names, merge near-duplicate recipes, test with queries typed by real users, and try tuning on more development recipes.</p>`;
+}
+function evalMarkdown(R) {
+  const c = R.config, T = R.tests, f = R.failures, tw = c.tuned;
+  const r = (n, t) => `| ${n} | ${ms(t.top1)} | ${ms(t.top5)} | ${ms(t.top10)} | ${t.mrr.mean.toFixed(3)} ± ${t.mrr.sd.toFixed(3)} |`;
+  return [`# RasoiMatch evaluation`, ``,
+    `Recipes with >= 5 core ingredients: ${c.eligible} (dev ${c.devN}, test ${c.testN}). Test sample: ${c.testSample}. Dev sample for tuning: ${c.devSample}. Seeds ${c.seeds.join(", ")}.`, ``,
+    `Tuned weights (dev only): coverage ${tw.cov}, usage ${tw.use}, few-missing ${tw.few}. Dev MRR ${c.startDev.mrr.toFixed(3)} -> ${c.tunedDev.mrr.toFixed(3)}.`, ``,
+    `| Test | Top-1 | Top-5 | Top-10 | MRR |`, `|---|---|---|---|---|`, r("A hidden ingredients", T.A), r("B Hindi names", T.B), r("C noise", T.C), ``,
+    `## Ablation (test A, seeds 42-44)`, `| Variant | Top-1 | Top-5 | Top-10 | MRR |`, `|---|---|---|---|---|`,
+    ...R.ablation.map(a => `| ${a.label} | ${pct(a.top1)} | ${pct(a.top5)} | ${pct(a.top10)} | ${a.mrr.toFixed(3)} |`), ``,
+    `## Failures (test A, seed 42)`, `${f.misses} of ${f.n} not ranked first; ${f.nearDup} had a near-duplicate ranked first.`, ``,
+    `| Recipe | Rank | Ranked first instead | Near-duplicate |`, `|---|---|---|---|`,
+    ...f.worst.map(x => `| ${x.name} | ${x.rank} | ${x.winner} | ${x.dup ? "yes" : ""} |`), ``,
+    `Source of recipes: Archana's Kitchen (archanaskitchen.com). Educational, non-commercial.`].join("\n");
+}
+
+start();
+</script>
